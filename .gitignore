@@ -23,3 +23,5 @@ handoff/
 *.webm
 *.mp4
 .DS_Store
+
+evidence/*.png
