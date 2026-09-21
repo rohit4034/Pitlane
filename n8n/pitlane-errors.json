@@ -1,0 +1,92 @@
+{
+  "name": "Pitlane - Unexpected Error Logger",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const execution=$json.execution??{}; return [{json:{workflow:String($json.workflow?.name??'unknown').slice(0,120), execution_id:execution.id==null?null:String(execution.id), correlation_id:null, error:'Unexpected execution failure; inspect restricted n8n execution logs.', recorded_at:new Date().toISOString()}}];"
+      },
+      "id": "sanitize",
+      "name": "Code - Sanitize Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "id": "log",
+      "name": "Log - Handled Error Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://irltuonabpmnvqdikuvv.supabase.co/rest/v1/workflow_errors",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "PitlaneSupabase1",
+          "name": "Pitlane Supabase"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code - Sanitize Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Sanitize Error": {
+      "main": [
+        [
+          {
+            "node": "Log - Handled Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "versionId": "dcd46a23-7b74-4d49-922b-370049b2b865",
+  "tags": [],
+  "id": "PitlaneErrors01"
+}

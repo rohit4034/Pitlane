@@ -1,0 +1,233 @@
+{
+  "id": "PitlaneLookup01",
+  "name": "Pitlane - NHTSA Vehicle Lookup",
+  "nodes": [
+    {
+      "id": "lookup-webhook",
+      "name": "Webhook - Vehicle Lookup",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pitlane/vehicle-lookup",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "pitlane-vpic-lookup",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PitlaneWebhook1",
+          "name": "Pitlane Webhook Secret"
+        }
+      }
+    },
+    {
+      "id": "validate",
+      "name": "Validate Make",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const raw=$json.body?.make; const make=typeof raw==='string'?raw.trim().replace(/\\s+/g,' '):''; return [{json:{make,valid:make.length>0&&make.length<=80&&/^[\\p{L}\\p{N} .&'()-]+$/u.test(make)}}];"
+      },
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "id": "valid",
+      "name": "IF - Valid Make",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "id": "invalid",
+      "name": "Respond - Invalid Make",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({error:\"Enter a make of 1\u201380 characters.\"}) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "position": [
+        660,
+        220
+      ]
+    },
+    {
+      "id": "vpic",
+      "name": "HTTP - NHTSA vPIC Models",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/' + encodeURIComponent($json.make) + '?format=json' }}",
+        "options": {
+          "timeout": 8000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "position": [
+        660,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 500,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "normalize",
+      "name": "Normalize Reference Models",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const make=$('Validate Make').first().json.make; const rows=$json.body?.Results; const valid=Array.isArray(rows)&&rows.every(r=>typeof r.Make_Name==='string'&&typeof r.Model_Name==='string'); const models=valid?[...new Set(rows.filter(r=>r.Make_Name.toLowerCase()===make.toLowerCase()).map(r=>r.Model_Name.trim()).filter(Boolean))].sort():[]; return [{json:{ok:valid,make,models,status:valid?(models.length?'available':'no_results'):'unavailable',source:'NHTSA vPIC',source_url:'https://vpic.nhtsa.dot.gov/api/',fetched_at:new Date().toISOString(),notice:'Reference models only. This list does not indicate dealership stock, UAE availability, or pricing.'}}];"
+      },
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "id": "result",
+      "name": "Respond - Reference Models",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": "={{ $json.ok ? 200 : 503 }}"
+        }
+      },
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "id": "failure",
+      "name": "Respond - Lookup Unavailable",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ok:false,status:\"unavailable\",error:\"Vehicle reference lookup is temporarily unavailable. You can still build your inventory shortlist.\",source:\"NHTSA vPIC\"}) }}",
+        "options": {
+          "responseCode": 503
+        }
+      },
+      "position": [
+        880,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Vehicle Lookup": {
+      "main": [
+        [
+          {
+            "node": "Validate Make",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Make": {
+      "main": [
+        [
+          {
+            "node": "IF - Valid Make",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Valid Make": {
+      "main": [
+        [
+          {
+            "node": "HTTP - NHTSA vPIC Models",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Invalid Make",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - NHTSA vPIC Models": {
+      "main": [
+        [
+          {
+            "node": "Normalize Reference Models",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Lookup Unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Reference Models": {
+      "main": [
+        [
+          {
+            "node": "Respond - Reference Models",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "errorWorkflow": "PitlaneErrors01"
+  },
+  "active": false
+}

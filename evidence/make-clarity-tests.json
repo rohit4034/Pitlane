@@ -1,0 +1,15 @@
+{
+  "testedAt": "2026-09-20T16:55:19.100Z",
+  "makes": [
+    "BMW",
+    "Hyundai",
+    "Kia",
+    "Mercedes-Benz",
+    "Toyota"
+  ],
+  "checks": [
+    "Selector contains only makes with persisted cars",
+    "Saved Audi report explicitly says no Audi catalog listings",
+    "Other makes visibly labeled alternatives"
+  ]
+}

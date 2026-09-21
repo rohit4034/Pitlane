@@ -1,0 +1,17 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+const env=Object.fromEntries(readFileSync('../stockroom/.env.hosted','utf8').split('\n').filter(l=>l.includes('=')).map(l=>[l.slice(0,l.indexOf('=')),l.slice(l.indexOf('=')+1)]));
+if(env.NEXT_PUBLIC_SUPABASE_URL!=='https://qwiladsujzxxswbkceqj.supabase.co')throw new Error('Unexpected Stockroom project');
+const owner='8d974617-b316-474d-919b-dea9fedeeb63';
+const creds=JSON.parse(readFileSync('.credentials/n8n-credentials.json','utf8')).filter(c=>c.id!=='StockroomRead01');
+creds.push({id:'StockroomRead01',name:'Stockroom Inventory (server only)',type:'httpCustomAuth',data:{json:JSON.stringify({headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`}})}});
+writeFileSync('.credentials/n8n-credentials.json',JSON.stringify(creds),{mode:0o600});
+const path='n8n/pitlane-enquiry.json',w=JSON.parse(readFileSync(path,'utf8'));
+const n=w.nodes.find(n=>n.name==='HTTP - Fetch Live Inventory');
+n.parameters.url=`${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/vehicle_financials?owner_id=eq.${owner}&status=eq.in_stock&select=id,stock_number,make,model,model_year,mileage_km,asking_price,status&order=stock_number.asc&limit=1000`;
+n.credentials={httpCustomAuth:{id:'StockroomRead01',name:'Stockroom Inventory (server only)'}};
+const rank=w.nodes.find(n=>n.name==='Code - Filter and Rank');
+rank.parameters.jsCode=rank.parameters.jsCode.replace('const rows = $json.body;',`const source = $json.body;
+const rows = Array.isArray(source) ? source.map(v => ({...v, asking_price_aed:v.asking_price, body_type:'Unknown', status:v.status==='in_stock'?'available':v.status, source:'stockroom'})) : null;`);
+if (!rank.parameters.jsCode.includes('Live Stockroom inventory;')) rank.parameters.jsCode=rank.parameters.jsCode.replace("const reasons = [", "const reasons = ['Live Stockroom inventory; body type is not recorded in Stockroom and must be confirmed by the advisor.', ");
+writeFileSync(path,JSON.stringify(w,null,2)+'\n');
+console.log('Connected Pitlane to the selected Stockroom workspace via a server-only credential.');

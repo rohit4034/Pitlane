@@ -1,0 +1,11 @@
+.env*
+.credentials
+node_modules
+evidence
+supabase
+n8n
+scripts
+data
+*.md
+compose.yaml
+handoff

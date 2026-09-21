@@ -1,0 +1,18 @@
+{
+  "verifiedAt": "2026-09-20T14:51:47.356Z",
+  "count": 50,
+  "unique": 50,
+  "makes": [
+    "BMW",
+    "Toyota",
+    "Hyundai",
+    "Kia",
+    "Mercedes-Benz"
+  ],
+  "endpoint": "https://pitlane-plum.vercel.app/api/cars",
+  "checks": [
+    "50 records returned by deployed app",
+    "Unique stock IDs",
+    "Positive prices, mileage and source links present"
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "ok": true,
+  "replay": false,
+  "report": {
+    "reasons": [
+      "YallaMotor listing snapshot from 20 September 2026; price and availability require seller confirmation.",
+      "At least one vehicle matches the stated preferences.",
+      "Purchase timeline: within_30_days"
+    ],
+    "priority": "high",
+    "shortlist": [
+      {
+        "id": "6fde7fca-68a7-48b0-bde7-9a28c2cb587c",
+        "make": "BMW",
+        "model": "X1",
+        "source": "YallaMotor demo snapshot",
+        "status": "advertised",
+        "location": "Dubai",
+        "body_type": "SUV",
+        "mileage_km": 110000,
+        "model_year": 2014,
+        "source_url": "https://uae.yallamotor.com/used-cars/bmw/x1/2014/used-bmw-x1-2014-dubai-2140402",
+        "updated_at": "2026-09-20T13:57:17.971453+00:00",
+        "stock_number": "YM-2140402",
+        "match_reasons": [
+          "requested make",
+          "requested body type",
+          "within budget"
+        ],
+        "regional_specs": "GCC Specs",
+        "asking_price_aed": 19000,
+        "body_type_source": "Model-category enrichment; verify specific body configuration with seller",
+        "source_observed_at": "2026-09-20T00:00:00+00:00"
+      },
+      {
+        "id": "f3dce1b2-c8dc-4a29-8ea1-767e906cfbe0",
+        "make": "BMW",
+        "model": "5 Series",
+        "source": "YallaMotor demo snapshot",
+        "status": "advertised",
+        "location": "Dubai",
+        "body_type": "Sedan",
+        "mileage_km": 140000,
+        "model_year": 2015,
+        "source_url": "https://uae.yallamotor.com/used-cars/bmw/5-series/2015/used-bmw-5-series-2015-dubai-2119350",
+        "updated_at": "2026-09-20T13:57:17.971453+00:00",
+        "stock_number": "YM-2119350",
+        "match_reasons": [
+          "requested make",
+          "alternative body type",
+          "within budget"
+        ],
+        "regional_specs": "GCC Specs",
+        "asking_price_aed": 35000,
+        "body_type_source": "Model-category enrichment; verify specific body configuration with seller",
+        "source_observed_at": "2026-09-20T00:00:00+00:00"
+      },
+      {
+        "id": "8e74500e-4671-4ef1-8600-1512146cca70",
+        "make": "Kia",
+        "model": "Sportage",
+        "source": "YallaMotor demo snapshot",
+        "status": "advertised",
+        "location": "Dubai",
+        "body_type": "SUV",
+        "mileage_km": 78500,
+        "model_year": 2022,
+        "source_url": "https://uae.yallamotor.com/used-cars/kia/sportage/2022/used-kia-sportage-2022-dubai-2140408",
+        "updated_at": "2026-09-20T13:57:17.971453+00:00",
+        "stock_number": "YM-2140408",
+        "match_reasons": [
+          "alternative make",
+          "requested body type",
+          "within budget"
+        ],
+        "regional_specs": "GCC Specs",
+        "asking_price_aed": 54500,
+        "body_type_source": "Model-category enrichment; verify specific body configuration with seller",
+        "source_observed_at": "2026-09-20T00:00:00+00:00"
+      }
+    ],
+    "fetched_at": "2026-09-20T13:58:57.372+00:00",
+    "request_id": "enquiry-6e0a6cb7-cd91-449b-85db-91edd993b5a8",
+    "completed_at": "2026-09-20T13:58:58.502341+00:00",
+    "advisor_brief": "Contact Dubai Demo Buyer with 3 advertised Dubai vehicle options and confirm availability.",
+    "normalized_preferences": {
+      "notes": null,
+      "currency": "AED",
+      "body_type": "SUV",
+      "budget_aed": 150000,
+      "request_id": "enquiry-6e0a6cb7-cd91-449b-85db-91edd993b5a8",
+      "customer_name": "Dubai Demo Buyer",
+      "preferred_make": "BMW",
+      "purchase_timeline": "within_30_days"
+    }
+  }
+}

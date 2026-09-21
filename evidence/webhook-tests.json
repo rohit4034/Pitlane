@@ -1,0 +1,55 @@
+{
+  "testedAt": "2026-09-20T13:29:37.265Z",
+  "webhook": "http://127.0.0.1:5678/webhook/pitlane/enquiry",
+  "requestId": "pitlane-live-1789910964011",
+  "results": [
+    {
+      "test": "Missing webhook credential rejected",
+      "status": "passed",
+      "httpStatus": 403
+    },
+    {
+      "test": "Invalid request returns 400",
+      "status": "passed",
+      "httpStatus": 400
+    },
+    {
+      "test": "Valid request returns 200 and real ranked shortlist",
+      "status": "passed",
+      "httpStatus": 200
+    },
+    {
+      "test": "Duplicate replays the same persisted report",
+      "status": "passed",
+      "httpStatus": 200
+    },
+    {
+      "test": "Changed payload with same request ID returns 409",
+      "status": "passed",
+      "httpStatus": 409
+    },
+    {
+      "test": "No-match request returns an honest empty shortlist",
+      "status": "passed",
+      "httpStatus": 200
+    },
+    {
+      "test": "Unmatched preferences produce explicitly labeled affordable alternatives",
+      "status": "passed",
+      "httpStatus": 200
+    },
+    {
+      "test": "Concurrent duplicates return completed or in-progress without errors",
+      "status": "passed",
+      "httpStatus": [
+        200,
+        202
+      ]
+    },
+    {
+      "test": "Duplicate run created exactly one report row",
+      "status": "passed",
+      "httpStatus": 200
+    }
+  ]
+}

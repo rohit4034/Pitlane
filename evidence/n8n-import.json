@@ -1,0 +1,12 @@
+{
+  "importedAt": "2026-09-20T13:16:44.354Z",
+  "instance": "http://127.0.0.1:5678",
+  "workflows": [
+    "PitlaneErrors01",
+    "PitlaneEnquiry01"
+  ],
+  "credentials": [
+    "Pitlane Supabase",
+    "Pitlane Webhook Secret"
+  ]
+}

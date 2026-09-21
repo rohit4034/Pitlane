@@ -1,0 +1,489 @@
+{
+  "name": "Pitlane - Enquiry to Vehicle Shortlist",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pitlane/enquiry",
+        "responseMode": "responseNode",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook - Enquiry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "webhookId": "pitlane-enquiry-production",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "PitlaneWebhook1",
+          "name": "Pitlane Webhook Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nconst allowedTimelines = ['this_week', 'within_30_days', 'within_90_days', 'researching'];\nconst text = (value, max) => typeof value === 'string' ? value.trim().replace(/\\s+/g, ' ').slice(0, max) : '';\nconst requestId = text(body.request_id, 120);\nconst customerName = text(body.customer_name, 120);\nconst make = text(body.preferred_make, 80);\nconst bodyType = text(body.body_type, 30);\nconst notes = text(body.notes, 500);\nconst budget = typeof body.budget_aed === 'number' || (typeof body.budget_aed === 'string' && body.budget_aed.trim()) ? Number(body.budget_aed) : NaN;\nconst timeline = text(body.purchase_timeline, 30);\nconst errors = [];\nif (typeof body.request_id !== 'string' || body.request_id.length > 120) errors.push({field:'request_id',message:'Use a string up to 120 characters'});\nif (bodyType && !['SUV','Sedan','Coupe','Hatchback','Pickup','Van'].includes(bodyType)) errors.push({field:'body_type',message:'Unsupported body type'});\nif (!requestId) errors.push({ field: 'request_id', message: 'Required' });\nif (!customerName) errors.push({ field: 'customer_name', message: 'Required' });\nif (!Number.isFinite(budget) || budget <= 0 || budget > 10000000) errors.push({ field: 'budget_aed', message: 'Must be between 1 and 10000000' });\nif (!allowedTimelines.includes(timeline)) errors.push({ field: 'purchase_timeline', message: 'Unsupported timeline' });\nconst normalized = { request_id: requestId, customer_name: customerName, preferred_make: make || null, body_type: bodyType || null, budget_aed: budget, purchase_timeline: timeline, notes: notes || null, currency: 'AED' };\nconst canonical = JSON.stringify(normalized);\nconst payloadHash = canonical;\nreturn [{ json: { normalized, payload_hash: payloadHash, correlation_id: `${requestId || 'invalid'}-${Date.now()}`, valid: errors.length === 0, errors } }];"
+      },
+      "id": "validate",
+      "name": "Code - Validate and Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "valid",
+      "name": "IF - Valid Input",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'validation_failed', fields: $json.errors, correlation_id: $json.correlation_id }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "invalid-response",
+      "name": "Respond - 400 Invalid Input",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        660,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://irltuonabpmnvqdikuvv.supabase.co/rest/v1/rpc/claim_enquiry",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_request_id: $json.normalized.request_id, p_payload_hash: $json.payload_hash, p_lease_seconds: 90 }) }}"
+      },
+      "id": "claim",
+      "name": "HTTP - Claim Enquiry RPC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "PitlaneSupabase1",
+          "name": "Pitlane Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 4,
+        "output": "={{ $json.body.status === 'completed' ? 0 : ($json.body.status === 'processing' ? 1 : ($json.body.status === 'conflict' ? 2 : 3)) }}"
+      },
+      "id": "claim-switch",
+      "name": "Switch - Claim Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        880,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, replay: true, report: $json.body.report }) }}"
+      },
+      "id": "replay-response",
+      "name": "Respond - Stored Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, status: 'processing', message: 'A request with this ID is already being processed. Retry shortly.' }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "processing-response",
+      "name": "Respond - 202 Processing",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'request_id_conflict', message: 'The request ID was already used with different data.' }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "conflict-response",
+      "name": "Respond - 409 Conflict",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://irltuonabpmnvqdikuvv.supabase.co/rest/v1/market_listings?status=eq.advertised&select=*&order=stock_number.asc&limit=1000",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "inventory",
+      "name": "HTTP - Fetch Live Inventory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "PitlaneSupabase1",
+          "name": "Pitlane Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Code - Validate and Normalize').first().json;\nconst claim = $('HTTP - Claim Enquiry RPC').first().json.body;\nconst rows = $json.body;\nif (!Array.isArray(rows) || !claim.claim_token || rows.length >= 1000 || rows.some(v => !v.id || typeof v.make !== 'string' || typeof v.body_type !== 'string' || !Number.isFinite(Number(v.asking_price_aed)) || Number(v.asking_price_aed)<=0 || !Number.isFinite(Number(v.mileage_km)))) return [{json:{failure:true}}];\nconst preferences = input.normalized;\nconst eligible = rows.filter(vehicle => vehicle.status === 'advertised' && Number(vehicle.asking_price_aed) <= preferences.budget_aed);\nconst ranked = eligible.map(vehicle => { const makeMatch = preferences.preferred_make && vehicle.make.toLowerCase() === preferences.preferred_make.toLowerCase(); const bodyMatch = preferences.body_type && vehicle.body_type.toLowerCase() === preferences.body_type.toLowerCase(); const score = (makeMatch ? 2 : 0) + (bodyMatch ? 1 : 0); return { ...vehicle, match_reasons: [makeMatch ? 'requested make' : 'alternative make', bodyMatch ? 'requested body type' : 'alternative body type', 'within budget'], _score: score }; }).sort((a, b) => b._score - a._score || Number(a.asking_price_aed)-Number(b.asking_price_aed) || Number(a.mileage_km)-Number(b.mileage_km) || a.stock_number.localeCompare(b.stock_number)).slice(0, 3).map(({ _score, ...vehicle }) => vehicle);\nconst exact = ranked.some(v => (!preferences.preferred_make || v.make.toLowerCase() === preferences.preferred_make.toLowerCase()) && (!preferences.body_type || v.body_type.toLowerCase() === preferences.body_type.toLowerCase()));\nconst outcome = ranked.length === 0 ? 'no_match' : (exact ? 'exact_match' : 'alternative');\nconst priority = preferences.purchase_timeline === 'this_week' || exact ? 'high' : preferences.purchase_timeline === 'within_30_days' ? 'medium' : 'low';\nconst reasons = ['YallaMotor listing snapshot from 20 September 2026; price and availability require seller confirmation.', outcome === 'exact_match' ? 'At least one vehicle matches the stated preferences.' : outcome === 'alternative' ? 'No exact preference match was available; alternatives stay within budget.' : 'No available vehicle is within the stated budget.', `Purchase timeline: ${preferences.purchase_timeline}`];\nconst advisorBrief = outcome === 'no_match' ? 'Clarify whether the buyer can increase the budget or change preferences before follow-up.' : `Contact ${preferences.customer_name} with ${ranked.length} advertised Dubai vehicle option${ranked.length === 1 ? '' : 's'} and confirm availability.`;\nreturn [{ json: { request_id: preferences.request_id, claim_token: claim.claim_token, normalized_preferences: preferences, shortlist: ranked, outcome, priority, reasons, advisor_brief: advisorBrief, fetched_at: new Date().toISOString() } }];"
+      },
+      "id": "rank",
+      "name": "Code - Filter and Rank",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://irltuonabpmnvqdikuvv.supabase.co/rest/v1/rpc/finalize_enquiry",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_request_id: $json.request_id, p_claim_token: $json.claim_token, p_normalized_preferences: $json.normalized_preferences, p_shortlist: $json.shortlist, p_priority: $json.priority, p_reasons: $json.reasons, p_advisor_brief: $json.advisor_brief, p_fetched_at: $json.fetched_at }) }}"
+      },
+      "id": "finalize",
+      "name": "HTTP - Finalize Report RPC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "PitlaneSupabase1",
+          "name": "Pitlane Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, replay: false, report: $json.body }) }}"
+      },
+      "id": "success-response",
+      "name": "Respond - Advisor Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        300
+      ]
+    },
+    {
+      "id": "rank-valid",
+      "name": "IF - Inventory Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !$json.failure }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "respond-503",
+      "name": "Respond - 503 Upstream Failure",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        700
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ok:false,error:\"upstream_unavailable\",message:\"The enquiry could not be completed. Retry the same request ID after 90 seconds.\"}) }}",
+        "options": {
+          "responseCode": 503
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Enquiry": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate and Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validate and Normalize": {
+      "main": [
+        [
+          {
+            "node": "IF - Valid Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Valid Input": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Claim Enquiry RPC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 400 Invalid Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Claim Enquiry RPC": {
+      "main": [
+        [
+          {
+            "node": "Switch - Claim Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 503 Upstream Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch - Claim Status": {
+      "main": [
+        [
+          {
+            "node": "Respond - Stored Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 202 Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 409 Conflict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP - Fetch Live Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Fetch Live Inventory": {
+      "main": [
+        [
+          {
+            "node": "Code - Filter and Rank",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 503 Upstream Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Filter and Rank": {
+      "main": [
+        [
+          {
+            "node": "IF - Inventory Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Finalize Report RPC": {
+      "main": [
+        [
+          {
+            "node": "Respond - Advisor Report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 503 Upstream Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Inventory Valid": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Finalize Report RPC",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - 503 Upstream Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "PitlaneErrors01"
+  },
+  "versionId": "c1c0c859-a824-4a7d-a87e-edf74fe8e0e9",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [],
+  "id": "PitlaneEnquiry01"
+}

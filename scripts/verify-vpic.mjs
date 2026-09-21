@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+const results=[];
+const lookup=async make=>{const r=await fetch('http://127.0.0.1:3080/api/vehicle-lookup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({make}),signal:AbortSignal.timeout(30000)});return {status:r.status,data:await r.json()};};
+let r=await lookup('BMW');assert.equal(r.status,200,JSON.stringify(r.data));assert(r.data.models.includes('X1'));assert.equal(r.data.source,'NHTSA vPIC');results.push('Real UI proxy → n8n HTTP node → NHTSA request returns BMW X1');const sample=r.data;
+r=await lookup('');assert.equal(r.status,400);results.push('Empty make returns 400');
+r=await lookup('Pitlane Fictional Make');assert.equal(r.status,200);assert.deepEqual(r.data.models,[]);assert.equal(r.data.status,'no_results');results.push('Unknown make returns honest empty reference list');
+const workflow=JSON.parse(await readFile('n8n/pitlane-vehicle-lookup.json','utf8'));
+const normalize=new Function('$json','$',workflow.nodes.find(n=>n.name==='Normalize Reference Models').parameters.jsCode);
+const mock=()=>({first:()=>({json:{make:'BMW'}})});
+assert.equal(normalize({body:{unexpected:true}},mock)[0].json.ok,false);assert.equal(normalize({body:{Results:[{Make_Name:'BMW',Model_Name:null}]}},mock)[0].json.ok,false);results.push('Malformed upstream data produces unavailable result');
+const unauthorized=await fetch(new URL('/webhook/pitlane/vehicle-lookup',process.env.PITLANE_WEBHOOK_URL),{method:'POST',headers:{'Content-Type':'application/json'},body:'{"make":"BMW"}'});assert([401,403].includes(unauthorized.status));results.push('Direct n8n lookup requires webhook credential');
+await writeFile('evidence/vpic-tests.json',JSON.stringify({testedAt:new Date().toISOString(),results,sample},null,2));console.log(results.join('\n'));

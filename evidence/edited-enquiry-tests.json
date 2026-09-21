@@ -1,0 +1,8 @@
+{
+  "testedAt": "2026-09-20T13:46:33.442Z",
+  "results": [
+    "Unchanged resubmission replays the same report",
+    "Edited budget automatically generates a new request ID",
+    "Edited enquiry returns a successful affordable shortlist"
+  ]
+}

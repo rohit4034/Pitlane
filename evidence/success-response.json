@@ -1,0 +1,78 @@
+{
+  "ok": true,
+  "replay": false,
+  "report": {
+    "reasons": [
+      "At least one vehicle matches the stated preferences.",
+      "Purchase timeline: within_30_days"
+    ],
+    "priority": "high",
+    "shortlist": [
+      {
+        "id": "3a4ed9c1-ce34-409b-a064-490a36459fc8",
+        "make": "BMW",
+        "model": "X1 sDrive20i",
+        "status": "available",
+        "body_type": "SUV",
+        "mileage_km": 18000,
+        "model_year": 2023,
+        "updated_at": "2026-09-20T12:30:18.492163+00:00",
+        "stock_number": "PL-BMW-X1-001",
+        "match_reasons": [
+          "requested make",
+          "requested body type",
+          "within budget"
+        ],
+        "asking_price_aed": 145000
+      },
+      {
+        "id": "276c693c-7182-40a5-805e-2d1907d04343",
+        "make": "Audi",
+        "model": "Q3 35 TFSI",
+        "status": "available",
+        "body_type": "SUV",
+        "mileage_km": 22000,
+        "model_year": 2023,
+        "updated_at": "2026-09-20T12:30:18.492163+00:00",
+        "stock_number": "PL-AUD-Q3-003",
+        "match_reasons": [
+          "alternative make",
+          "requested body type",
+          "within budget"
+        ],
+        "asking_price_aed": 139000
+      },
+      {
+        "id": "ffbf02c9-72eb-479b-803b-49e254734495",
+        "make": "Mercedes-Benz",
+        "model": "GLA 200",
+        "status": "available",
+        "body_type": "SUV",
+        "mileage_km": 27000,
+        "model_year": 2022,
+        "updated_at": "2026-09-20T12:30:18.492163+00:00",
+        "stock_number": "PL-MER-GLA-004",
+        "match_reasons": [
+          "alternative make",
+          "requested body type",
+          "within budget"
+        ],
+        "asking_price_aed": 149000
+      }
+    ],
+    "fetched_at": "2026-09-20T13:29:26.096+00:00",
+    "request_id": "pitlane-live-1789910964011",
+    "completed_at": "2026-09-20T13:29:26.803812+00:00",
+    "advisor_brief": "Contact Demo Buyer with 3 demonstration vehicle options and confirm availability.",
+    "normalized_preferences": {
+      "notes": "Prefer lower mileage",
+      "currency": "AED",
+      "body_type": "SUV",
+      "budget_aed": 150000,
+      "request_id": "pitlane-live-1789910964011",
+      "customer_name": "Demo Buyer",
+      "preferred_make": "BMW",
+      "purchase_timeline": "within_30_days"
+    }
+  }
+}

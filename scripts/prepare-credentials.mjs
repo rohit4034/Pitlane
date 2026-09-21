@@ -1,0 +1,16 @@
+import {execFileSync} from 'node:child_process';
+import {mkdirSync,writeFileSync,existsSync,readFileSync,chmodSync} from 'node:fs';
+import {randomBytes} from 'node:crypto';
+const project='irltuonabpmnvqdikuvv';
+const keys=JSON.parse(execFileSync(existsSync('node_modules/.bin/supabase')?'node_modules/.bin/supabase':'../stockroom/node_modules/.bin/supabase',['projects','api-keys','--project-ref',project,'--output','json'],{encoding:'utf8',stdio:['ignore','pipe','pipe']}));
+const service=keys.find(k=>k.name==='service_role')?.api_key,anon=keys.find(k=>k.name==='anon')?.api_key;
+if(!service||!anon)throw new Error('Project credentials unavailable');
+mkdirSync('.credentials',{recursive:true,mode:0o700});
+const previous=existsSync('.env')?readFileSync('.env','utf8'):'';
+const get=(key)=>previous.split('\n').find(line=>line.startsWith(key+'='))?.slice(key.length+1)||randomBytes(32).toString('hex');
+const secret=get('PITLANE_WEBHOOK_SECRET'),encryption=get('N8N_ENCRYPTION_KEY'),candidate=get('N8N_OWNER_PASSWORD'),password=(/[A-Z]/.test(candidate)?candidate:'PitlaneA9-'+candidate).slice(0,64);
+writeFileSync('.env',`PITLANE_SUPABASE_URL=https://${project}.supabase.co\nPITLANE_SUPABASE_SERVICE_KEY=${service}\nPITLANE_SUPABASE_ANON_KEY=${anon}\nPITLANE_WEBHOOK_SECRET=${secret}\nN8N_ENCRYPTION_KEY=${encryption}\nN8N_OWNER_PASSWORD=${password}\nPITLANE_WEBHOOK_URL=http://127.0.0.1:5678/webhook/pitlane/enquiry\n`,{mode:0o600});chmodSync('.env',0o600);
+const creds=[{id:'PitlaneSupabase1',name:'Pitlane Supabase',type:'httpCustomAuth',data:{json:JSON.stringify({headers:{apikey:service,Authorization:`Bearer ${service}`}})}},{id:'PitlaneWebhook1',name:'Pitlane Webhook Secret',type:'httpHeaderAuth',data:{name:'X-Pitlane-Webhook-Secret',value:secret}}];
+writeFileSync('.credentials/n8n-credentials.json',JSON.stringify(creds),{mode:0o600});
+writeFileSync('.credentials/login.txt',`n8n: http://127.0.0.1:5678\nEmail: owner@pitlane.local\nPassword: ${password}\n`,{mode:0o600});
+console.log('Saved Pitlane credentials privately; no keys printed.');

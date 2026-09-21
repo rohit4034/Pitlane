@@ -1,0 +1,25 @@
+{
+  "name": "pitlane",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "docker compose up -d",
+    "stop": "docker compose stop",
+    "credentials": "node scripts/prepare-credentials.mjs",
+    "connect:stockroom": "node --env-file=.env scripts/connect-stockroom.mjs",
+    "import": "node --env-file=.env scripts/bootstrap-n8n.mjs",
+    "test:database": "node --env-file=.env scripts/verify-database.mjs",
+    "test:webhook": "node --env-file=.env scripts/verify-webhook.mjs",
+    "app": "node --env-file=.env app/local.mjs",
+    "test:app": "node scripts/verify-app.mjs",
+    "test:vpic": "node --env-file=.env scripts/verify-vpic.mjs",
+    "import:dubai": "node --env-file=.env scripts/import-dubai-snapshot.mjs"
+  },
+  "devDependencies": {
+    "supabase": "latest"
+  }
+}

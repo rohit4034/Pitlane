@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const url=process.env.PITLANE_WEBHOOK_URL,secret=process.env.PITLANE_WEBHOOK_SECRET;
+if(!url||!secret)throw new Error('Configure PITLANE_WEBHOOK_URL and PITLANE_WEBHOOK_SECRET');
+const prefix=`pitlane-live-${Date.now()}`;
+const payload={request_id:prefix,customer_name:'Demo Buyer',preferred_make:'BMW',body_type:'SUV',budget_aed:150000,purchase_timeline:'within_30_days',notes:'Prefer lower mileage'};
+const results=[];const pass=(test,status)=>{results.push({test,status:'passed',httpStatus:status});console.log('PASS',test,status)};
+async function send(body,auth=true){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...(auth?{'X-Pitlane-Webhook-Secret':secret}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(90000)});const text=await r.text();let data;try{data=JSON.parse(text)}catch{data={raw:text.slice(0,200)}}return {status:r.status,data}}
+let r=await send(payload,false);assert([401,403].includes(r.status));pass('Missing webhook credential rejected',r.status);
+r=await send({request_id:prefix+'-invalid'});assert.equal(r.status,400);pass('Invalid request returns 400',r.status);
+r=await send(payload);assert.equal(r.status,200,JSON.stringify(r.data));assert.equal(r.data.ok,true);assert(r.data.report.shortlist.length>0);assert.equal(r.data.report.shortlist[0].stock_number,'YM-2140402');assert(r.data.report.shortlist.every(v=>v.asking_price_aed<=payload.budget_aed));const report=r.data.report;pass('Valid request returns 200 and real ranked shortlist',r.status);
+await writeFile('evidence/success-response.json',JSON.stringify(r.data,null,2));
+r=await send(payload);assert.equal(r.status,200);assert.equal(r.data.replay,true);assert.deepEqual(r.data.report,report);pass('Duplicate replays the same persisted report',r.status);
+r=await send({...payload,budget_aed:100000});assert.equal(r.status,409);pass('Changed payload with same request ID returns 409',r.status);
+r=await send({...payload,request_id:prefix+'-empty',budget_aed:1});assert.equal(r.status,200);assert.equal(r.data.report.shortlist.length,0);pass('No-match request returns an honest empty shortlist',r.status);
+r=await send({...payload,request_id:prefix+'-alternative',preferred_make:'Porsche'});assert.equal(r.status,200);assert(r.data.report.shortlist.length>0);assert(r.data.report.shortlist.every(v=>v.make!=='Porsche'&&v.asking_price_aed<=payload.budget_aed));assert(r.data.report.reasons.some(reason=>reason.includes('No exact preference match')));pass('Unmatched preferences produce explicitly labeled affordable alternatives',r.status);
+const concurrent={...payload,request_id:prefix+'-concurrent'};const pair=await Promise.all([send(concurrent),send(concurrent)]);assert(pair.every(r=>[200,202].includes(r.status)));assert(pair.some(r=>r.status===200));pass('Concurrent duplicates return completed or in-progress without errors',pair.map(r=>r.status));
+const key=process.env.PITLANE_SUPABASE_SERVICE_KEY;
+const saved=await fetch(`${process.env.PITLANE_SUPABASE_URL}/rest/v1/enquiry_reports?request_id=eq.${prefix}&select=request_id`,{headers:{apikey:key,Authorization:`Bearer ${key}`}});assert(saved.ok);assert.equal((await saved.json()).length,1);pass('Duplicate run created exactly one report row',200);
+await writeFile('evidence/webhook-tests.json',JSON.stringify({testedAt:new Date().toISOString(),webhook:url,requestId:prefix,results},null,2));
